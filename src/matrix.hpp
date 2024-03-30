@@ -16,16 +16,22 @@ class Matrix {
         T operator[](std::pair<size_t,size_t> index);
         Matrix operator-();
         Matrix operator-(Matrix B);
+        Matrix operator/(T rhs);
 
         size_t getM();
         size_t getN();
+        bool isSquare();
 
         void print();
+        void printFlat();
 
     private:
         // Size properties
         size_t M;
         size_t N;
+
+        // Booleans
+        bool issquare;
 
         // Data
         std::vector<T> data;

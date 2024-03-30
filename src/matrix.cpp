@@ -5,15 +5,21 @@
 
 // Default constructor
 template <typename T>
-Matrix<T>::Matrix() : M(0), N(0), data(std::vector<T>()) {}
+Matrix<T>::Matrix() : M(0), N(0), data(std::vector<T>()) {
+    issquare = false;
+}
 
 // Uninitialize constructor
 template <typename T>
-Matrix<T>::Matrix(int M, int N) : M(M), N(N), data(std::vector<T>(M*N,0)) {}
+Matrix<T>::Matrix(int M, int N) : M(M), N(N), data(std::vector<T>(M*N,0)) {
+    issquare = (M==N);
+}
 
 // Initialize constructor
 template <typename T>
-Matrix<T>::Matrix(int M, int N, T* data) : M(M), N(N), data(std::vector<T>(data, data + (M*N))) {}
+Matrix<T>::Matrix(int M, int N, T* data) : M(M), N(N), data(std::vector<T>(data, data + (M*N))) {
+    issquare = (M==N);
+}
 
 // Single matrix operations
 template <typename T>
@@ -76,7 +82,22 @@ Matrix<T> Matrix<T>::operator-(Matrix<T> B) {
         }
     }
 
-    Matrix<T> out(M, N, &outData[0U]);
+    Matrix<T> out(M, N, outData);
+    return out;
+}
+
+// Binary division
+template <typename T>
+Matrix<T> Matrix<T>::operator/(T rhs) {
+    T outData[M*N];
+
+    for (size_t i = 0; i < M; ++i) {
+        for (size_t j = 0; j < N; ++j) {
+            outData[getFlatIndex(M,N,i,j)] = this->Index(i,j) / rhs;
+        }
+    }
+
+    Matrix<T> out(M, N, outData);
     return out;
 }
 
@@ -91,6 +112,11 @@ size_t Matrix<T>::getN() {
     return N;
 }
 
+template <typename T>
+bool Matrix<T>::isSquare() {
+    return issquare;
+}
+
 // Print functions
 template <typename T>
 void Matrix<T>::print() {
@@ -102,6 +128,17 @@ void Matrix<T>::print() {
         }
         else {
             std::cout << std::endl;
+        }
+    }
+}
+
+template <typename T>
+void Matrix<T>::printFlat() {
+    for (size_t i = 1; i <= M*N; ++i) {
+        std::cout << data[i - 1];
+
+        if (i < M*N) {
+            std::cout << ", ";
         }
     }
 }
