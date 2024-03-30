@@ -14,7 +14,7 @@ Matrix<T>::Matrix(int M, int N) : M(M), N(N), data(std::vector<T>(M*N,0)) {}
 template <typename T>
 Matrix<T>::Matrix(int M, int N, T* data) : M(M), N(N), data(std::vector<T>(data, data + (M*N))) {}
 
-// Operations
+// Single matrix operations
 template <typename T>
 void Matrix<T>::Transpose() {
     // Allocate array for new data
@@ -33,6 +33,12 @@ void Matrix<T>::Transpose() {
     M = tmp;
     
     data.assign(newData, newData + (M*N));
+}
+
+// Index
+template <typename T>
+T Matrix<T>::Index(size_t row, size_t col) {
+    return data[N*row + col];
 }
 
 // Get functions

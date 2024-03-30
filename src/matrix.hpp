@@ -1,3 +1,6 @@
+#ifndef MATRIX_H
+#define MATRIX_H
+
 #include <vector>
 
 template <typename T>
@@ -8,6 +11,8 @@ class Matrix {
         Matrix(int M, int N, T* src);
 
         void Transpose();
+
+        T Index(size_t row, size_t col);
 
         size_t getM();
         size_t getN();
@@ -22,3 +27,5 @@ class Matrix {
         // Data
         std::vector<T> data;
 };
+
+#endif // MATRIX_H
