@@ -13,6 +13,9 @@ class Matrix {
         void Transpose();
 
         T Index(size_t row, size_t col);
+        T operator[](std::pair<size_t,size_t> index);
+        Matrix operator-();
+        Matrix operator-(Matrix B);
 
         size_t getM();
         size_t getN();

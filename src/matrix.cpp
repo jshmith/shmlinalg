@@ -1,6 +1,7 @@
 #include <iostream>
 #include <set>
 #include "matrix.hpp"
+#include "utils.cpp"
 
 // Default constructor
 template <typename T>
@@ -35,10 +36,48 @@ void Matrix<T>::Transpose() {
     data.assign(newData, newData + (M*N));
 }
 
-// Index
+// Index method
 template <typename T>
 T Matrix<T>::Index(size_t row, size_t col) {
-    return data[N*row + col];
+    return data[getFlatIndex(M,N,row,col)];
+}
+
+// Index overload
+template <typename T>
+T Matrix<T>::operator[](std::pair<size_t,size_t> index) {
+    return data[getFlatIndex(M,N,index.first,index.second)];
+}
+
+// Unary minus
+template <typename T>
+Matrix<T> Matrix<T>::operator-() {
+    T outData[M*N];
+
+    for (size_t i = 0; i < M*N; ++i) {
+        outData[i] = -data[i];
+    }
+
+    Matrix<T> out(M, N, &outData[0U]);
+    return out;
+}
+
+// Binary minus
+template <typename T>
+Matrix<T> Matrix<T>::operator-(Matrix<T> B) {
+    if ((B.getM() != M) || (B.getN() != N)) {
+        throw("Incompatible matrix dimensions.");
+    }
+
+    T outData[M*N];
+
+    for (size_t i = 0; i < M; ++i) {
+        for (size_t j = 0; j < N; ++j) {
+            outData[getFlatIndex(M,N,i,j)] = this->Index(i,j) - B.Index(i,j);
+        }
+    }
+
+    Matrix<T> out(M, N, &outData[0U]);
+    return out;
 }
 
 // Get functions
