@@ -2,6 +2,8 @@
 #include <set>
 #include "matrix.hpp"
 #include "utils.cpp"
+#include <cassert>
+#include <math.h>
 
 // Default constructor
 template <typename T>
@@ -19,6 +21,14 @@ Matrix<T>::Matrix(int M, int N) : M(M), N(N), data(std::vector<T>(M*N,0)) {
 template <typename T>
 Matrix<T>::Matrix(int M, int N, T* data) : M(M), N(N), data(std::vector<T>(data, data + (M*N))) {
     issquare = (M==N);
+}
+
+// Copy constructor
+template <typename T>
+Matrix<T>::Matrix(const Matrix<T> &A) {
+    M = A.getM();
+    N = A.getN();
+    data = A.getData();
 }
 
 // Single matrix operations
@@ -42,10 +52,49 @@ void Matrix<T>::Transpose() {
     data.assign(newData, newData + (M*N));
 }
 
-// Index method
+// Returns the 2 norm of a vector or the
+// Frobenius norm of a matrix.
+template <typename T>
+T Matrix<T>::norm() {
+    size_t numel = M*N;
+    T out = 0;
+    for (size_t i = 0; i < numel; ++i) {
+        out += pow(data[i], 2);
+    }
+    return pow(out, 0.5);
+}
+
+// Index methods
 template <typename T>
 T Matrix<T>::Index(size_t row, size_t col) {
+    if ((row < 0 || row >= M) || (col < 0 || col >= N)) {
+        throw("Out of bounds.");
+    }
     return data[getFlatIndex(M,N,row,col)];
+}
+
+template <typename T>
+Matrix<T> Matrix<T>::Index(size_t rowStart, size_t rowStop, size_t colStart, size_t colStop) {
+    assert((rowStart <= rowStop) && (colStart <= colStop));
+    if ((rowStart < 0 || rowStop >= M) || (colStart < 0 || colStop >= N)) {
+        throw("Out of bounds.");
+    }
+
+    // Compute output sizes
+    size_t outM = rowStop - rowStart + 1;
+    size_t outN = colStop - colStart + 1;
+
+    T outData[outM*outN];
+    size_t outIdx = 0;
+    for (size_t i = rowStart; i <= rowStop; ++i) {
+        for (size_t j = colStart; j <= colStop; ++j) {
+            outData[outIdx] = data[i*N + j];
+            outIdx++;
+        }
+    }
+
+    Matrix<T> out(outM,outN,outData);
+    return out;
 }
 
 // Index overload
@@ -86,7 +135,7 @@ Matrix<T> Matrix<T>::operator-(Matrix<T> B) {
     return out;
 }
 
-// Binary division
+// Scalar division
 template <typename T>
 Matrix<T> Matrix<T>::operator/(T rhs) {
     T outData[M*N];
@@ -101,20 +150,140 @@ Matrix<T> Matrix<T>::operator/(T rhs) {
     return out;
 }
 
+// Scalar multiplication
+template <typename T>
+Matrix<T> Matrix<T>::operator*(T rhs) {
+    T outData[M*N];
+
+    for (size_t i = 0; i < M; ++i) {
+        for (size_t j = 0; j < N; ++j) {
+            outData[getFlatIndex(M,N,i,j)] = this->Index(i,j) * rhs;
+        }
+    }
+
+    Matrix<T> out(M, N, outData);
+    return out;
+}
+
+// Scalar subtraction
+template <typename T>
+Matrix<T> Matrix<T>::operator-(T rhs) {
+    T outData[M*N];
+
+    for (size_t i = 0; i < M; ++i) {
+        for (size_t j = 0; j < N; ++j) {
+            outData[getFlatIndex(M,N,i,j)] = this->Index(i,j) - rhs;
+        }
+    }
+
+    Matrix<T> out(M, N, outData);
+    return out;
+}
+
+// Scalar addition
+template <typename T>
+Matrix<T> Matrix<T>::operator+(T rhs) {
+    T outData[M*N];
+
+    for (size_t i = 0; i < M; ++i) {
+        for (size_t j = 0; j < N; ++j) {
+            outData[getFlatIndex(M,N,i,j)] = this->Index(i,j) + rhs;
+        }
+    }
+
+    Matrix<T> out(M, N, outData);
+    return out;
+}
+
+// Set functions
+template <typename T>
+void Matrix<T>::setElem(size_t row, size_t col, T val) {
+    if ((row < 0 || row >= M) || (col < 0 || col >= N)) {
+        throw("Out of bounds.");
+    }
+    data[row*N + col] = val;
+}
+
+template <typename T>
+void Matrix<T>::setElem(size_t rowStart, size_t rowStop, size_t colStart, size_t colStop, Matrix<T> &A) {
+    assert((rowStart <= rowStop) && (colStart <= colStop));
+    assert((rowStop - rowStart + 1 == A.getM()) && (colStop - colStart + 1 == A.getN()));
+    if ((rowStart < 0 || rowStop >= M) || (colStart < 0 || colStop >= N)) {
+        throw("Out of bounds.");
+    }
+
+    // Compute output sizes
+    // size_t outM = rowStop - rowStart + 1;
+    // size_t outN = colStop - colStart + 1;
+
+    // T outData[outM*outN];
+    size_t aN = A.getN();
+    for (size_t i = rowStart; i <= rowStop; ++i) {
+        for (size_t j = colStart; j <= colStop; ++j) {
+            data[i*N + j] = A.Index(i-rowStart, j-colStart);
+        }
+    }
+}
+
 // Get functions
 template <typename T>
-size_t Matrix<T>::getM() {
+size_t Matrix<T>::getM() const {
     return M;
 }
 
 template <typename T>
-size_t Matrix<T>::getN() {
+size_t Matrix<T>::getN() const {
     return N;
 }
 
 template <typename T>
-bool Matrix<T>::isSquare() {
+std::vector<T> Matrix<T>::getData() const {
+    return data;
+}
+
+template <typename T>
+bool Matrix<T>::isSquare() const {
     return issquare;
+}
+
+template <typename T>
+Matrix<T> Matrix<T>::col(size_t j) {
+    if (j >= N) {
+        throw("Invalid column for this matrix size.");
+    }
+
+    size_t startIdx = j;
+    size_t inc = N;
+
+    T outData[M];
+
+    for (size_t i = 0; i < M; ++i) {
+        size_t idx = startIdx + inc*i;
+        outData[i] = data[idx];
+    }
+
+    Matrix<T> out = Matrix<T>(M,1,outData);
+    return out;
+}
+
+template <typename T>
+Matrix<T> Matrix<T>::row(size_t i) {
+    if (i >= M) {
+        throw("Invalid row for this matrix size.");
+    }
+
+    size_t startIdx = i*N;
+    size_t inc = 1;
+
+    T outData[N];
+
+    for (size_t i = 0; i < N; ++i) {
+        size_t idx = startIdx + inc*i;
+        outData[i] = data[idx];
+    }
+
+    Matrix<T> out = Matrix<T>(1,M,outData);
+    return out;
 }
 
 // Print functions
