@@ -262,20 +262,23 @@ std::pair<MatrixPtr<T>, MatrixPtr<T>> qr(MatrixPtr<T> A) {
         auto Qslice = std::make_shared<Matrix<T>>(Q->Index(0, M-1, j, N-1));
         auto wT = transpose(w);
 
-        auto rProd = multiply(wT, Rslice);
-        auto qProd = multiply(Qslice, w);
+        auto outerW = multiply(w, wT);
 
-        auto wTau = std::make_shared<Matrix<T>>(*w * tau);
-        auto wTauT = transpose(wTau);
+        // H is tau * w * w'
+        auto H = std::make_shared<Matrix<T>>(*(multiply(w, wT)) * tau);
 
-        auto rUpdate = multiply(wTau, rProd);
-        auto rDiff = std::make_shared<Matrix<T>>(*Rslice - *rUpdate);
+        // Compute HR and QH for the part of the matrix we care about
+        auto HR = multiply(H, Rslice);
+        auto QH = multiply(Qslice, H);
 
-        auto qUpdate = multiply(qProd, wTauT);
-        auto qDiff = std::make_shared<Matrix<T>>(*Qslice - *qUpdate);
+        // This is computing R-HR and Q-QH
+        // since the formula calls for R(I - tau*w*w')
+        // and (I - tau*w*w')Q
+        auto diffR = *Rslice - *HR;
+        auto diffQ = *Qslice - *QH;
 
-        R->setElem(j, M-1, 0, N-1, *rDiff);
-        Q->setElem(0, M-1, j, N-1, *qDiff);
+        R->setElem(j, M-1, 0, N-1, diffR);
+        Q->setElem(0, M-1, j, N-1, diffQ);
     }
     return std::make_pair(std::make_shared<Matrix<T>>(*Q), std::make_shared<Matrix<T>>(*R));
 }
