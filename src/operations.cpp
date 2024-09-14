@@ -1,6 +1,9 @@
 #include "matrix.hpp"
 #include "operations.hpp"
 #include "utils.hpp"
+#include <random>
+#include <cmath>
+#include <cassert>
 
 /*
 Performs the matrix multiplication AB
@@ -34,7 +37,7 @@ MatrixPtr<T> multiply(MatrixPtr<T> A, MatrixPtr<T> B) {
         }
     }
 
-    return std::make_shared<Matrix<T>>(mA, nB, &outData[0U]);
+    return Matrix<T>::create(mA, nB, &outData[0U]);
 }
 
 /*
@@ -60,13 +63,12 @@ MatrixPtr<T> add(MatrixPtr<T> A, MatrixPtr<T> B) {
 
     for (size_t i = 0; i < mA; ++i) {
         for (size_t j = 0; j < nA; ++j) {
-            auto loc = std::make_pair(i, j);
-            outData[getFlatIndex(mA,nA,i,j)] = (*A)[loc] + (*B)[loc];
+            outData[getFlatIndex(mA,nA,i,j)] = A->Index(i, j) + B->Index(i, j);
         }
     }
 
     // Matrix<T> C(mA, nA, &outData[0U]);
-    return std::make_shared<Matrix<T>>(mA,nA,outData);
+    return Matrix<T>::create(mA,nA,&outData[0U]);
 }
 
 /*
@@ -88,7 +90,26 @@ MatrixPtr<T> transpose(MatrixPtr<T> A) {
     }
 
     //Matrix<T> out(N,M,outData);
-    return std::make_shared<Matrix<T>>(N,M,&outData[0U]);
+    return Matrix<T>::create(N,M,&outData[0U]);
+}
+
+/*
+Returns the length-N standard basis vector for the i-th dimension
+*/
+template <typename T>
+MatrixPtr<T> standardBasis(size_t N, size_t i) {
+    T outData[N];
+
+    for (size_t j = 0; j < N; ++j) {
+        if (j != i) {
+            outData[j] = 0;
+        }
+        else {
+            outData[j] = 1;
+        }
+    }
+
+    return Matrix<T>::create(N,1,&outData[0U]);
 }
 
 /*
@@ -127,7 +148,7 @@ MatrixPtr<T> cofactor(MatrixPtr<T> A, size_t row, size_t col) {
 
     //Matrix<T> out(outM, outN, outData);
 
-    return std::make_shared<Matrix<T>>(outN,outM,outData);
+    return Matrix<T>::create(outN,outM,&outData[0U]);
 }
 
 /*
@@ -190,7 +211,7 @@ MatrixPtr<T> adj(MatrixPtr<T> A) {
 
     //Matrix<T> out(dimSize,dimSize,outData);
 
-    return std::make_shared<Matrix<T>>(dimSize,dimSize,outData);
+    return Matrix<T>::create(dimSize,dimSize,&outData[0U]);
 }
 
 /*
@@ -211,7 +232,7 @@ MatrixPtr<T> inv(MatrixPtr<T> A) {
 
     auto Adj = *(adj(A));
 
-    return std::make_shared<Matrix<T>>(Adj/d);
+    return Matrix<T>::create(Adj/d);
 }
 
 /*
@@ -231,7 +252,7 @@ MatrixPtr<T> eye(size_t M) {
         }
     }
     //Matrix<T> out(M,M,outData);
-    return std::make_shared<Matrix<T>>(M,M,&outData[0U]);
+    return Matrix<T>::create(M,M,&outData[0U]);
 }
 
 /*
@@ -243,29 +264,29 @@ std::pair<MatrixPtr<T>, MatrixPtr<T>> qr(MatrixPtr<T> A) {
     size_t N = A->getN();
 
     auto Q = eye<T>(M);
-    MatrixPtr<T> R = std::make_shared<Matrix<T>>(*A);
+    MatrixPtr<T> R = Matrix<T>::create(*A);
 
     // Iterate over columns of A
     for (size_t j = 0; j < N; ++j) {
         // Find the Householder reflection for the column
         T Rjj = R->Index(j,j);
-        MatrixPtr<T> col = std::make_shared<Matrix<T>>(R->Index(j, M-1, j, j));
+        MatrixPtr<T> col = Matrix<T>::create(R->Index(j, M-1, j, j));
         T normCol = col->norm();
         int s = (Rjj < 0) ? 1 : -1;
         T u1 = Rjj - s*normCol;
 
-        MatrixPtr<T> w = std::make_shared<Matrix<T>>(*col / u1);
+        MatrixPtr<T> w = Matrix<T>::create(*col / u1);
         w->setElem(0, 0, 1);
         T tau = -s * u1 / normCol;
 
-        auto Rslice = std::make_shared<Matrix<T>>(R->Index(j, M-1, 0, N-1));
-        auto Qslice = std::make_shared<Matrix<T>>(Q->Index(0, M-1, j, N-1));
+        auto Rslice = Matrix<T>::create(R->Index(j, M-1, 0, N-1));
+        auto Qslice = Matrix<T>::create(Q->Index(0, M-1, j, N-1));
         auto wT = transpose(w);
 
         auto outerW = multiply(w, wT);
 
         // H is tau * w * w'
-        auto H = std::make_shared<Matrix<T>>(*(multiply(w, wT)) * tau);
+        auto H = Matrix<T>::create(*(multiply(w, wT)) * tau);
 
         // Compute HR and QH for the part of the matrix we care about
         auto HR = multiply(H, Rslice);
@@ -280,5 +301,234 @@ std::pair<MatrixPtr<T>, MatrixPtr<T>> qr(MatrixPtr<T> A) {
         R->setElem(j, M-1, 0, N-1, diffR);
         Q->setElem(0, M-1, j, N-1, diffQ);
     }
-    return std::make_pair(std::make_shared<Matrix<T>>(*Q), std::make_shared<Matrix<T>>(*R));
+    return std::make_pair(Matrix<T>::create(*Q), Matrix<T>::create(*R));
+}
+
+/*
+Checks if the matrix A is "close enough" to
+being upper triangular
+*/
+template <typename T>
+bool isUpperTriangular(MatrixPtr<T> A, T tol) {
+    size_t M = A->getM();
+    size_t N = A->getN();
+
+    // Validate A is square
+    if (!A->isSquare() || (M == 1 && N == 1)) {
+        throw("Matrix must be square and non-scalar.");
+    }
+
+    // We are interested in elements with index i,j-1
+    for (size_t i = 1; i <= M-1; ++i) {
+        size_t j = i-1;
+
+        if (std::abs(A->Index(i, j)) > tol) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/*
+Extracts the diagonal of square matrix A
+and returns as a row vector
+*/
+template <typename T>
+MatrixPtr<T> diag(MatrixPtr<T> A) {
+    // Validate A is square
+    if (!A->isSquare()) {
+        throw("Matrix must be square.");
+    }
+
+    size_t M = A->getM();
+    T outData[M];
+
+    for (size_t i = 0; i < M; ++i) {
+        outData[i] = A->Index(i, i);
+    }
+
+    return Matrix<T>::create(1,M,&outData[0U]);
+}
+
+/*
+Creates diagonal matrix from C++ array.
+*/
+template <typename T>
+MatrixPtr<T> Diagonal(int M, T* src) {
+    MatrixPtr<T> out = Matrix<T>::create(M, M);
+
+    for (size_t i = 0; i < M; ++i) {
+        out->setElem(i, i, src[i+(M*i)]);
+    }
+
+    return out;
+}
+
+/*
+Creates diagonal matrix from vector.
+*/
+template <typename T>
+MatrixPtr<T> Diagonal(MatrixPtr<T> A) {
+    assert(A->isVector());
+
+    // Initialize output matrix to the correct size.
+    size_t matSize = 0;
+    if(A->isRowVector()) {
+        matSize = A->getN();
+    }
+    else {
+        matSize = A->getM();
+    }
+
+    MatrixPtr<T> out = Matrix<T>::create(matSize, matSize);
+
+    for (size_t i = 0; i < matSize; ++i) {
+        out->setElem(i, i, A->Index(i));
+    }
+
+    return out;
+}
+
+/*
+Generate a uniform random matrix
+*/
+template <typename T>
+MatrixPtr<T> randmat(size_t M, size_t N) {
+    T outData[M*N];
+
+    std::uniform_real_distribution<T> unif(0, 1);
+    std::default_random_engine re;
+
+    for (size_t i = 0; i < M*N; ++i) {
+        outData[i] = unif(re);
+    }
+
+    return Matrix<T>::create(M,N,&outData[0U]);
+}
+
+/*
+Compute the norm of a matrix or vector
+(2-norm or Frobenius)
+*/
+template <typename T>
+T norm(MatrixPtr<T> A) {
+    size_t M = A->getM();
+    size_t N = A->getN();
+
+    T out = 0;
+    for (size_t i = 0; i < M; ++i) {
+        for (size_t j = 0; j < N; ++j) {
+            out += pow(A->Index(i, j), 2);
+        }
+    }
+    return pow(out, 0.5);
+}
+
+/*
+Returns a matrix of 1's with the shape M x N
+*/
+template <typename T>
+MatrixPtr<T> ones(size_t M, size_t N) {
+    T outData[M*N];
+
+    for (size_t i = 0; i < M; ++i) {
+        for (size_t j = 0; j < N; ++j) {
+            outData[i*N + j] = 1;
+        }
+    }
+    return Matrix<T>::create(M,N,&outData[0U]);
+}
+
+/*
+Normalize A by dividing by its norm
+*/
+template <typename T>
+MatrixPtr<T> normalize(MatrixPtr<T> A) {
+    T normA = norm(A);
+    return Matrix<T>::create((*A) / normA);
+}
+
+/*
+Inverse power iterate on A given an initial
+eigenvalue guess mu
+*/
+template <typename T>
+MatrixPtr<T> invPowerIter(MatrixPtr<T> A, T mu, T tol, size_t maxIter) {
+    // Validate A is square
+    if (!A->isSquare()) {
+        throw("Matrix must be square.");
+    }
+
+    size_t M = A->getM();
+
+    MatrixPtr<T> v = normalize(randmat<T>(M, size_t(1)));
+    MatrixPtr<T> vNext = nullptr;
+
+    // Perturb the matrix in the case where mu is 0
+    // and the matrix is singular
+    Matrix<T> muI = (*(eye<T>(M)) * (mu+1e-6));
+
+    for (size_t i = 0; i < maxIter; ++i) {
+        MatrixPtr<T> diff = Matrix<T>::create((*A) - muI);
+        MatrixPtr<T> diffInv = inv(diff);
+
+        MatrixPtr<T> prod = multiply(diffInv, v);
+
+        vNext = Matrix<T>::create((*prod) / norm(prod));
+
+        T residual = norm(Matrix<T>::create((*vNext) - (*v)));
+
+        if (residual < tol) {
+            break;
+        }
+
+        v = vNext;
+    }
+    return v;
+}
+
+/*
+Finds the eigen-decomposition of A
+*/
+template <typename T>
+std::pair<MatrixPtr<T>, MatrixPtr<T>> eig(MatrixPtr<T> A) {
+    // Validate A is square
+    if (!A->isSquare()) {
+        throw("Matrix must be square.");
+    }
+
+    size_t M = A->getM();
+
+    // Iterate and compute QR until Ak is roughly diagonal
+    T tol = 1e-10;
+    size_t maxIter = 1000;
+
+    MatrixPtr<T> curA = Matrix<T>::create(*A);
+    MatrixPtr<T> Q = nullptr;
+    MatrixPtr<T> R = nullptr;
+    MatrixPtr<T> eigVals = nullptr;
+
+    // Estimate eigenvalues
+    for (size_t i = 0; i < maxIter; ++i) {
+        std::pair<std::shared_ptr<Matrix<T>>, std::shared_ptr<Matrix<T>>> QR = qr(curA);
+        Q = QR.first;
+        R = QR.second;
+        curA = multiply(R, Q);
+        eigVals = diag(curA);
+
+        if (isUpperTriangular(curA, tol)) {
+            curA->print();
+            std::cout << "************" << std::endl;
+            break;
+        }
+    }
+
+    MatrixPtr<T> eigVecs = Matrix<T>::create(M, M);
+
+    for (size_t i = 0; i < M; ++i) {
+        auto vi = invPowerIter(A, eigVals->Index(0, i), tol, maxIter);
+        eigVecs->setElem(0, M-1, i, i, *vi);
+    }
+
+    return std::make_pair(eigVals, eigVecs);
 }

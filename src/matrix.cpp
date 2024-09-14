@@ -26,9 +26,17 @@ Matrix<T>::Matrix(int M, int N, T* data) : M(M), N(N), data(std::vector<T>(data,
 // Copy constructor
 template <typename T>
 Matrix<T>::Matrix(const Matrix<T> &A) {
-    M = A.getM();
-    N = A.getN();
-    data = A.getData();
+    M = A.M;
+    N = A.N;
+    data = A.data;
+    issquare = A.issquare;
+}
+
+// Create a shared pointer to a Matrix
+template <typename T>
+template <typename... Args>
+MatrixPtr<T> Matrix<T>::create(Args&& ... args) {
+    return std::make_shared<Matrix<T>>(args...);
 }
 
 // Single matrix operations
@@ -71,6 +79,14 @@ T Matrix<T>::Index(size_t row, size_t col) {
         throw("Out of bounds.");
     }
     return data[getFlatIndex(M,N,row,col)];
+}
+
+template <typename T>
+T Matrix<T>::Index(size_t ind) {
+    if (ind < 0 || ind >= (M*N)) {
+        throw("Out of bounds.");
+    }
+    return data[ind];
 }
 
 template <typename T>
@@ -244,6 +260,21 @@ std::vector<T> Matrix<T>::getData() const {
 template <typename T>
 bool Matrix<T>::isSquare() const {
     return issquare;
+}
+
+template <typename T>
+bool Matrix<T>::isColumnVector() const {
+    return (N == 1);
+}
+
+template <typename T>
+bool Matrix<T>::isRowVector() const {
+    return (M == 1);
+}
+
+template <typename T>
+bool Matrix<T>::isVector() const {
+    return isColumnVector() || isRowVector();
 }
 
 template <typename T>
