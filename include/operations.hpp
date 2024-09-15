@@ -1,6 +1,6 @@
-#include "matrix.hpp"
-#include "operations.hpp"
 #include "utils.hpp"
+#include "matrix.hpp"
+#include <memory>
 #include <random>
 #include <cmath>
 #include <cassert>
@@ -23,8 +23,8 @@ MatrixPtr<T> multiply(MatrixPtr<T> A, MatrixPtr<T> B) {
     }
 
     // Output array data
-    size_t nElemOut = mA * nB;
-    T outData[nElemOut];
+    const size_t nElemOut = mA * nB;
+    std::vector<T> outData(nElemOut);
 
     for (size_t k = 0; k < mA; ++k) {
         for (size_t j = 0; j < nB; ++j) {
@@ -58,8 +58,8 @@ MatrixPtr<T> add(MatrixPtr<T> A, MatrixPtr<T> B) {
     }
 
     // Output array data
-    size_t nElemOut = mA * nA;
-    T outData[nElemOut];
+    const size_t nElemOut = mA * nA;
+    std::vector<T> outData(nElemOut);
 
     for (size_t i = 0; i < mA; ++i) {
         for (size_t j = 0; j < nA; ++j) {
@@ -79,8 +79,8 @@ MatrixPtr<T> transpose(MatrixPtr<T> A) {
     size_t M = A->getM();
     size_t N = A->getN();
 
-    size_t numel = M*N;
-    T outData[numel];
+    const size_t numel = M*N;
+    std::vector<T> outData(numel);
 
     // Worry about speed later
     for (size_t i = 0; i < M; ++i) {
@@ -98,7 +98,8 @@ Returns the length-N standard basis vector for the i-th dimension
 */
 template <typename T>
 MatrixPtr<T> standardBasis(size_t N, size_t i) {
-    T outData[N];
+    const size_t dataSize = N;
+    std::vector<T> outData(dataSize);
 
     for (size_t j = 0; j < N; ++j) {
         if (j != i) {
@@ -127,8 +128,9 @@ MatrixPtr<T> cofactor(MatrixPtr<T> A, size_t row, size_t col) {
 
     size_t outM = A->getM()-1;
     size_t outN = A->getN()-1;
+    const size_t dataSize = outM*outN;
 
-    T outData[outM * outN];
+    std::vector<T> outData(dataSize);
 
     size_t pastCol = 0;
     size_t pastRow = 0;
@@ -196,8 +198,8 @@ MatrixPtr<T> adj(MatrixPtr<T> A) {
         throw("Matrix must be square.");
     }
 
-    size_t dimSize = A->getM();
-    T outData[dimSize*dimSize];
+    const size_t dimSize = A->getM();
+    std::vector<T> outData(dimSize*dimSize);
 
     for (size_t i = 0; i < dimSize; ++i) {
         for (size_t j = 0; j < dimSize; ++j) {
@@ -240,7 +242,8 @@ Returns the identity matrix of size M
 */
 template <typename T>
 MatrixPtr<T> eye(size_t M) {
-    T outData[M*M];
+    const size_t dataSize = M*M;
+    std::vector<T> outData(dataSize);
 
     for (size_t i = 0; i < M; ++i) {
         for (size_t j = 0; j < M; ++j) {
@@ -340,8 +343,8 @@ MatrixPtr<T> diag(MatrixPtr<T> A) {
         throw("Matrix must be square.");
     }
 
-    size_t M = A->getM();
-    T outData[M];
+    const size_t M = A->getM();
+    std::vector<T> outData(M);
 
     for (size_t i = 0; i < M; ++i) {
         outData[i] = A->Index(i, i);
@@ -394,7 +397,8 @@ Generate a uniform random matrix
 */
 template <typename T>
 MatrixPtr<T> randmat(size_t M, size_t N) {
-    T outData[M*N];
+    const size_t dataSize = M*N;
+    std::vector<T> outData(dataSize);
 
     std::uniform_real_distribution<T> unif(0, 1);
     std::default_random_engine re;
@@ -429,7 +433,8 @@ Returns a matrix of 1's with the shape M x N
 */
 template <typename T>
 MatrixPtr<T> ones(size_t M, size_t N) {
-    T outData[M*N];
+    const size_t dataSize = M*N;
+    std::vector<T> outData(dataSize);
 
     for (size_t i = 0; i < M; ++i) {
         for (size_t j = 0; j < N; ++j) {
@@ -517,8 +522,6 @@ std::pair<MatrixPtr<T>, MatrixPtr<T>> eig(MatrixPtr<T> A) {
         eigVals = diag(curA);
 
         if (isUpperTriangular(curA, tol)) {
-            curA->print();
-            std::cout << "************" << std::endl;
             break;
         }
     }
