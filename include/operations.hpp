@@ -262,7 +262,7 @@ MatrixPtr<T> eye(size_t M) {
 Finds the QR decomposition of A
 */
 template <typename T>
-std::pair<MatrixPtr<T>, MatrixPtr<T>> qr(MatrixPtr<T> A) {
+std::pair<MatrixPtr<T>, MatrixPtr<T>> qr(MatrixPtr<T> A, T tol=1e-6) {
     size_t M = A->getM();
     size_t N = A->getN();
 
@@ -275,6 +275,12 @@ std::pair<MatrixPtr<T>, MatrixPtr<T>> qr(MatrixPtr<T> A) {
         T Rjj = R->Index(j,j);
         MatrixPtr<T> col = Matrix<T>::create(R->Index(j, M-1, j, j));
         T normCol = col->norm();
+
+        // If norm is close to 0, skip the reflection
+        if (normCol < tol) {
+            continue;
+        }
+
         int s = (Rjj < 0) ? 1 : -1;
         T u1 = Rjj - s*normCol;
 
@@ -512,25 +518,21 @@ std::pair<MatrixPtr<T>, MatrixPtr<T>> eig(MatrixPtr<T> A) {
     MatrixPtr<T> Q = nullptr;
     MatrixPtr<T> R = nullptr;
     MatrixPtr<T> eigVals = nullptr;
+    MatrixPtr<T> eigVecs = eye<T>(M);
 
     // Estimate eigenvalues
     for (size_t i = 0; i < maxIter; ++i) {
         std::pair<std::shared_ptr<Matrix<T>>, std::shared_ptr<Matrix<T>>> QR = qr(curA);
         Q = QR.first;
         R = QR.second;
+
         curA = multiply(R, Q);
         eigVals = diag(curA);
+        eigVecs = multiply(Q, eigVecs);
 
         if (isUpperTriangular(curA, tol)) {
             break;
         }
-    }
-
-    MatrixPtr<T> eigVecs = Matrix<T>::create(M, M);
-
-    for (size_t i = 0; i < M; ++i) {
-        auto vi = invPowerIter(A, eigVals->Index(0, i), tol, maxIter);
-        eigVecs->setElem(0, M-1, i, i, *vi);
     }
 
     return std::make_pair(eigVals, eigVecs);
