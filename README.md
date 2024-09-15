@@ -2,7 +2,7 @@
 This is a C++ Shmlinear Algebra library.
 
 # Usage
-The `Matrix` class provides an interface to work with standard matrices. `operations.hpp` is what defines most of the utilities for working iwth `Matrix` objects.
+The `Matrix` class provides an interface to work with standard matrices. `operations.hpp` is what defines most of the utilities for working with `Matrix` objects.
 
 Rather than working directly with `Matrix` instances, the APIs use `MatrixPtr`. These can be made with a call like:
 ```
