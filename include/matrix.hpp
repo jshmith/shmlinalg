@@ -1,5 +1,4 @@
-#ifndef MATRIX_H
-#define MATRIX_H
+#pragma once
 
 #include <vector>
 #include <memory>
@@ -24,6 +23,7 @@ class Matrix {
         Matrix(size_t M, size_t N, T* src);
         Matrix(size_t M, size_t N, std::vector<T>& data);
         Matrix(const Matrix<T> &A); // Copy constructor
+        Matrix(Matrix<T> &&A); // Move constructor
         
         // Static method for creating a shared_ptr to a Matrix
         template <typename... Args>
@@ -40,6 +40,7 @@ class Matrix {
         Matrix operator-(Matrix B);
         Matrix operator/(T rhs);
         Matrix operator*(T rhs);
+        Matrix operator*(Matrix<T>& rhs);
         Matrix operator-(T rhs);
         Matrix operator+(T rhs);
 
@@ -99,6 +100,15 @@ Matrix<T>::Matrix(size_t M, size_t N, std::vector<T>& data) : M(M), N(N), data(d
 // Copy constructor
 template <typename T>
 Matrix<T>::Matrix(const Matrix<T> &A) {
+    M = A.M;
+    N = A.N;
+    data = A.data;
+    issquare = A.issquare;
+}
+
+// Move constructor
+template <typename T>
+Matrix<T>::Matrix(Matrix<T> &&A) {
     M = A.M;
     N = A.N;
     data = A.data;
@@ -251,6 +261,39 @@ Matrix<T> Matrix<T>::operator*(T rhs) {
 
     Matrix<T> out(M, N, &outData[0U]);
     return out;
+}
+
+// Matrix multiplication
+template <typename T>
+Matrix<T> Matrix<T>::operator*(Matrix<T>& rhs) {
+    // Extract dimensions
+    const size_t mA = this->M;
+    const size_t nA = this->N;
+
+    const size_t mB = rhs.M;
+    const size_t nB = rhs.N;
+
+    // Ensure dimension compatibility
+    if (nA != mB) {
+        throw("Incompatible matrix dimensions.");
+    }
+
+    // Output array data
+    const size_t nElemOut = mA * nB;
+    std::vector<T> outData(nElemOut);
+
+    for (size_t k = 0; k < mA; ++k) {
+        for (size_t j = 0; j < nB; ++j) {
+            size_t dataIdx = nB*k + j;
+            outData[dataIdx] = 0;
+
+            for (size_t i = 0; i < nA; ++i) {
+                outData[dataIdx] += (this->Index(k,i)*rhs.Index(i,j));
+            }
+        }
+    }
+
+    return Matrix<T>(mA, nB, &outData[0U]);
 }
 
 // Scalar subtraction
@@ -413,5 +456,3 @@ void Matrix<T>::printFlat() {
         }
     }
 }
-
-#endif // MATRIX_H

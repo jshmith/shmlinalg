@@ -1,3 +1,5 @@
+#pragma once
+
 #include "utils.hpp"
 #include "matrix.hpp"
 #include <memory>

@@ -1,5 +1,6 @@
 #include <iostream>
 #include "matrix.hpp"
+#include "matrix_utilities.hpp"
 #include "operations.hpp"
 #include <memory>
 
@@ -106,5 +107,13 @@ int main() {
     std::cout << "--------Product VLV'--------" << std::endl;
     auto prod2 = multiply(V, multiply(Diagonal(L), transpose(V)));
     prod2->print();
+
+    /*
+    Example 7: Random Gaussian matrix
+    */
+    std::cout << "****** Example 7 ******" << std::endl;
+    MatrixPtr<double> Rand = randn(3, 3);
+    Rand->print();
+
     return 0;
 }
